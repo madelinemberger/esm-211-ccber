@@ -87,6 +87,15 @@ bird_summary_month <- bird_species_tidy %>%
     count = length(species)
   )
 
+
+finch_sparrow_only <- bird_species_tidy %>% 
+  select(-location) %>% 
+  filter(species == "song sparrow" | species == "house finch") %>% 
+  group_by(year, species) %>% 
+  summarize(
+    count = length(species)
+  )
+
 #graph minus house finch
 yearly_abundance_graph <- ggplot(bird_summary_year, aes(x = year, y = count, group = species))+ 
   geom_line(aes(color = species))+
@@ -99,6 +108,19 @@ yearly_abundance_graph
 
 yearly_abundance_graph +
   scale_color_paletteer_d("calecopal::figmtn")
+
+
+#just sparrow and finch 
+
+sparrow_finch_gg <- ggplot(finch_sparrow_only, aes(x = year, y = count, group = species)) +
+  geom_line(aes(color = species))+
+  theme_minimal()+
+  labs(x = "Year", y = "Count", title = "Yearly passerine count at  Lagoon Island 1996 - 2017")+
+  scale_y_continuous(expand = c(0,0))+
+  geom_vline(xintercept = 2005, linetype = "dashed")+
+  scale_color_paletteer_d("calecopal::bigsur")
+  
+sparrow_finch_gg
 
 
 #by month
