@@ -17,7 +17,13 @@ library(janitor)
 birds_all <- read_csv("UCSB_CampusLagoon_BirdSurveyData.csv") %>% 
   clean_names() %>% 
   select(species, lagoon_island_zone_summary, day:year)
+
+
+bbs_all <- read_csv("bbs_data.csv") %>% 
+  clean_names()
 ```
+
+##Introduction: Description of Data
 
 
 ###Data cleaning
@@ -86,9 +92,13 @@ yearly_abundance_graph <- ggplot(bird_summary_year, aes(x = year, y = count, gro
   geom_line(aes(color = species))+
   theme_minimal()+
   labs(x = "Year", y = "Count", title = "Yearly passerine count at  Lagoon Island 1996 - 2017")+
-  scale_y_continuous(expand = c(0,0))
+  scale_y_continuous(expand = c(0,0))+
+  geom_vline(xintercept = 2005, linetype = "dashed")
 
 yearly_abundance_graph
+
+yearly_abundance_graph +
+  scale_color_paletteer_d("calecopal::figmtn")
 
 
 #by month
@@ -113,7 +123,8 @@ ggplot(bird_summary_year, aes(x = year, y = count, group = species))+
   geom_line(aes(color = species))+
   theme_minimal()+
   labs(x = "Year", y = "Count", title = "Yearly passerine count at  Lagoon Island 1996 - 2017")+
-  scale_y_continuous(expand = c(0,0))
+  scale_y_continuous(expand = c(0,0)) +
+  geom_vline(xintercept = 2005)
 
 
 ```
