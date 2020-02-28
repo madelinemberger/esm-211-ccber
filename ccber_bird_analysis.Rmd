@@ -12,26 +12,28 @@ library(tidyverse)
 library(reshape2)
 library(paletteer)
 library(janitor)
+library(lubridate)
 
 #read in our data
 birds_all <- read_csv("UCSB_CampusLagoon_BirdSurveyData.csv") %>% 
   clean_names() %>% 
   select(species, lagoon_island_zone_summary, day:year)
 
-
+#read in breeding bird survey data
 bbs_all <- read_csv("bbs_data.csv") %>% 
   clean_names()
 ```
 
 ##Introduction: Description of Data
 
+The CCBER at UC Santa Barbara has been monitoring bird populations on and near campus since 1996. In 2005, the University began oak restoration...
 
 ###Data cleaning
 ```{r}
 
 birds_all$species <- factor(birds_all$species)
 
-#break out 
+#break out and then parse dates
 data_long <- melt(birds_all,
         # ID variables - all the variables to keep but not split apart on
     id.vars=c("day", "month","year", "species"),
@@ -42,26 +44,34 @@ data_long <- melt(birds_all,
     variable.name="location",
     value.name="count"
 ) %>% 
-  mutate(species = str_to_lower(species))
+  mutate(
+    species = str_to_lower(species),
+    date = paste(day, month, year),
+    date = dmy(date)
+  ) %>% 
+  dplyr::select(-month, -day) %>% 
+  mutate(
+    month = month(date, label = TRUE)
+  )
 
-#if we want each line to represent one bird
+#if we want each line to represent one bird, also change the name of the scrub jay to match bbs
 data_tidy<- uncount(data_long, weights = count) %>% 
-  mutate(species = str_to_lower(species))
+  mutate(species = str_to_lower(species)) %>% 
+  mutate(speces = case_when(
+    species %in% "western scrub-jay" ~ "california scrub-jay",
+    TRUE ~ species
+  ))
 
 
-#filter by the species we are interested in
+#filter by the species we are interested in, and up to 2016 since that is what best matches the bbs 
 
 #tidy version (missing zero counts)
 bird_species_tidy <- data_tidy %>% 
-  filter(species == "western scrub-jay" | species =="common yellowthroat"| species == "song sparrow" | species == "bewick's wren" | species == "white-crowned sparrow" | species == "house finch")
+  filter(species == "california scrub-jay" | species =="common yellowthroat"| species == "song sparrow" | species == "bewick's wren" | species == "white-crowned sparrow" | species == "house finch")
 
 #version with counts
 bird_species_count <- data_long %>% 
-  filter(species == "western scrub-jay" | species =="common yellowthroat"| species == "song sparrow" | species == "bewick's wren" | species == "white-crowned sparrow" | species == "house finch")
-
-
-
-#reminder to fix dates
+  filter(species == "california scrub-jay" | species =="common yellowthroat"| species == "song sparrow" | species == "bewick's wren" | species == "white-crowned sparrow" | species == "house finch")
 
 
 
@@ -72,6 +82,7 @@ bird_species_count <- data_long %>%
 
 ```{r}
 
+#create df that summarize yearly and monthly totals
 bird_summary_year <- bird_species_tidy %>% 
   select(-location) %>%
   filter(species != "house finch") %>% 
@@ -128,7 +139,7 @@ sparrow_finch_gg
 monthy_ab_graph <- ggplot(bird_summary_month, aes(x = month, y = count, group = species))+ 
   geom_line(aes(color = species))+
   theme_minimal()+
-  labs(x = "Month", y = "Count", title = "Monthly passerine count at  Lagoon Island 1996 - 2017")+
+  labs(x = "Month", y = "Count", title = "Monthly passerine count at Lagoon Island 1996 - 2017")+
   scale_y_continuous(expand = c(0,0))
 
 monthy_ab_graph
@@ -150,4 +161,17 @@ ggplot(bird_summary_year, aes(x = year, y = count, group = species))+
 
 
 ```
+
+
+##Analysis
+
+
+```{r}
+
+
+
+
+
+```
+
 
