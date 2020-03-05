@@ -22,7 +22,7 @@ birds_all <- read_csv("UCSB_CampusLagoon_BirdSurveyData.csv") %>%
   select(species, lagoon_island_zone_summary, day:year)
 
 #read in breeding bird survey data
-bbs_all <- read_csv("bbs_data.csv") %>% 
+bbs_all <- read_csv("bbs_data_all.csv") %>% 
   clean_names()
 ```
 
@@ -185,7 +185,9 @@ ccber_model <- mgcv::gam(lagoon_island_zone_summary ~ year, family = poisson, da
 
 summary(ccber_model)
 
+#create new data frame to use with the model
 newd <- data.frame(year = 1996:2016)
+
 #predict abundance using new data
 
 bird_predict <- predict.gam(ccber_model, newd)
