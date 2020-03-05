@@ -200,4 +200,9 @@ bird_predict
 
 ```
 
+Questions for Bruce:
+-is birds_all the data format we want? right now when we use it we get really low predictions, and we suspect it is because its by day and there are a ton of zeros????
+-would it help to aggregate by month? or use tidy data?
+-OR is there something in the model code we can change to better capture the month and year dynamics
 
+-how to get integers? 
