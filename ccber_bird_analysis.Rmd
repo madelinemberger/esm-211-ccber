@@ -26,7 +26,7 @@ bbs_all <- read_csv("bbs_data.csv") %>%
   clean_names()
 ```
 
-##Introduction: Description of Data
+##Introduction: Description of Data and Project
 
 The CCBER at UC Santa Barbara has been monitoring bird populations on and near campus since 1996. In 2005, the University began oak restoration...
 
@@ -136,7 +136,7 @@ sparrow_finch_gg <- ggplot(finch_sparrow_only, aes(x = year, y = count, group = 
   labs(x = "Year", y = "Count", title = "Yearly house finch and song sparrow count at  Lagoon Island 1996 - 2017")+
   scale_y_continuous(expand = c(0,0))+
   geom_vline(xintercept = 2005, linetype = "dashed")+
-  scale_color_paletteer_d("calecopal::bigsur")
+  scale_color_paletteer_d("calecopal::lake")
   
 sparrow_finch_gg
 
