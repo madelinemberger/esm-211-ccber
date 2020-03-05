@@ -13,6 +13,8 @@ library(reshape2)
 library(paletteer)
 library(janitor)
 library(lubridate)
+library(mgcv)
+
 
 #read in our data
 birds_all <- read_csv("UCSB_CampusLagoon_BirdSurveyData.csv") %>% 
@@ -51,13 +53,17 @@ data_long <- melt(birds_all,
   ) %>% 
   dplyr::select(-month, -day) %>% 
   mutate(
-    month = month(date, label = TRUE)
-  )
+    month = month(date, label = FALSE)
+  ) %>% 
+  mutate(species = case_when(
+    species %in% "western scrub-jay" ~ "california scrub-jay",
+    TRUE ~ species
+  ))
 
 #if we want each line to represent one bird, also change the name of the scrub jay to match bbs
 data_tidy<- uncount(data_long, weights = count) %>% 
   mutate(species = str_to_lower(species)) %>% 
-  mutate(speces = case_when(
+  mutate(species = case_when(
     species %in% "western scrub-jay" ~ "california scrub-jay",
     TRUE ~ species
   ))
@@ -67,11 +73,12 @@ data_tidy<- uncount(data_long, weights = count) %>%
 
 #tidy version (missing zero counts)
 bird_species_tidy <- data_tidy %>% 
-  filter(species == "california scrub-jay" | species =="common yellowthroat"| species == "song sparrow" | species == "bewick's wren" | species == "white-crowned sparrow" | species == "house finch")
+  filter(species == "california scrub-jay" | species =="common yellowthroat"| species == "song sparrow" | species == "bewick's wren" | species == "white-crowned sparrow" | species == "house finch" | species == "california towhee" | species == "blue-gray gnatcatcher")
 
 #version with counts
 bird_species_count <- data_long %>% 
-  filter(species == "california scrub-jay" | species =="common yellowthroat"| species == "song sparrow" | species == "bewick's wren" | species == "white-crowned sparrow" | species == "house finch")
+  filter(species == "california scrub-jay" | species =="common yellowthroat"| species == "song sparrow" | species == "bewick's wren" | species == "white-crowned sparrow" | species == "house finch" | species == "california towhee" | species == "blue-gray gnatcatcher")
+
 
 
 
@@ -126,7 +133,7 @@ yearly_abundance_graph +
 sparrow_finch_gg <- ggplot(finch_sparrow_only, aes(x = year, y = count, group = species)) +
   geom_line(aes(color = species))+
   theme_minimal()+
-  labs(x = "Year", y = "Count", title = "Yearly passerine count at  Lagoon Island 1996 - 2017")+
+  labs(x = "Year", y = "Count", title = "Yearly house finch and song sparrow count at  Lagoon Island 1996 - 2017")+
   scale_y_continuous(expand = c(0,0))+
   geom_vline(xintercept = 2005, linetype = "dashed")+
   scale_color_paletteer_d("calecopal::bigsur")
@@ -165,12 +172,29 @@ ggplot(bird_summary_year, aes(x = year, y = count, group = species))+
 
 ##Analysis
 
-
+###CCBER data
 ```{r}
+#go back to count
+#pick a species
 
+birds_all_sparrow <- birds_all %>% 
+  filter(species == "Song Sparrow")
 
+#run GAM on CCBER data 
+ccber_model <- mgcv::gam(lagoon_island_zone_summary ~ year, family = poisson, data = birds_all_sparrow)
 
+summary(ccber_model)
 
+newd <- data.frame(year = 1996:2016)
+#predict abundance using new data
+
+bird_predict <- predict.gam(ccber_model, newd)
+
+bird_predict
+
+#notes /issues
+#didn't month because I couldn't figure it out
+#how can we ask the models for integers
 
 ```
 
