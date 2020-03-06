@@ -14,6 +14,7 @@ library(paletteer)
 library(janitor)
 library(lubridate)
 library(mgcv)
+library(broom)
 
 
 #read in our data
@@ -30,12 +31,26 @@ bbs_all <- read_csv("bbs_data_all.csv") %>%
 
 The CCBER at UC Santa Barbara has been monitoring bird populations on and near campus since 1996. In 2005, the University began oak restoration...
 
-###Data cleaning
+###Data cleaning - CCBER
 ```{r}
 
 birds_all$species <- factor(birds_all$species)
 
-#break out and then parse dates
+###keeping original data - this is the one you need for modelling
+
+birds_all_clean <- birds_all %>% 
+  mutate(
+    date = paste(day, month, year),
+    date = dmy(date)
+  ) %>% 
+  dplyr::select(-month, -day) %>% 
+  mutate(
+    month = month(date, label = TRUE)
+  ) %>%
+  drop_na(month) %>% 
+  filter(year != 2017)
+
+#break out and then parse dates - this will make graphing nicer
 data_long <- melt(birds_all,
         # ID variables - all the variables to keep but not split apart on
     id.vars=c("day", "month","year", "species"),
@@ -85,22 +100,49 @@ bird_species_count <- data_long %>%
 ```
 
 
-##Summary graphs
+##Data Cleaning - BBS
+```{r}
+
+bbs_clean <- bbs_all %>% 
+  mutate(
+    species = case_when(
+      aou %in% 5190 ~ "house finch",
+      aou %in% 5540 ~ "white-crowned sparrow",
+      aou %in% 5810 ~ "song sparrow",
+      aou %in% 5911 ~ "california towhee",
+      aou %in% 6810 ~ "common yellowthroat",
+      aou %in% 7190 ~ "bewick's wren",
+      aou %in% 7510 ~ "blue-gray gnatcatcher",
+      aou %in% 4812 ~ "california scrub jay"
+    )
+  ) %>% 
+  select(-aou, -country)
+
+
+
+
+```
+
+
+
+
+##Summary graphs - CCBER
 
 ```{r}
 
-#create df that summarize yearly and monthly totals
+#create dfs that summarize yearly and monthly totals
 bird_summary_year <- bird_species_tidy %>% 
   select(-location) %>%
-  filter(species != "house finch") %>% 
+  #filter(species != "house finch") %>%
+  filter(year != 2017) %>% 
   group_by(year, species) %>% 
   summarize(
     count = length(species)
   )
 
-bird_summary_month <- bird_species_tidy %>% 
+bird_summary_month_yr <- bird_species_tidy %>% 
   select(-location) %>% 
-  group_by(month, species) %>% 
+  group_by(month, year, species) %>% 
   summarize(
     count = length(species)
   )
@@ -172,37 +214,113 @@ ggplot(bird_summary_year, aes(x = year, y = count, group = species))+
 
 ##Analysis
 
-###CCBER data
+###CCBER data - Song Sparrow
 ```{r}
 #go back to count
 #pick a species
 
-birds_all_sparrow <- birds_all %>% 
+birds_ssparrow <- birds_all_clean %>%
   filter(species == "Song Sparrow")
 
-#run GAM on CCBER data 
-ccber_model <- mgcv::gam(lagoon_island_zone_summary ~ year, family = poisson, data = birds_all_sparrow)
+#run GAM on CCBER data
 
-summary(ccber_model)
+ccber_ssparrow_model <- mgcv::gam(lagoon_island_zone_summary ~ s(year) + month, family = poisson, data = birds_ssparrow) #this gives you the log transformed abudnance
+
+summary(ccber_ssparrow_model)
 
 #create new data frame to use with the model
-newd <- data.frame(year = 1996:2016)
+newd <- data.frame(year = 1996:2016, month = "Jul")
 
 #predict abundance using new data
 
-bird_predict <- predict.gam(ccber_model, newd)
+ssparrow_predict <- predict.gam(ccber_ssparrow_model, newd, type="response")
 
-bird_predict
+ssparrow_predict
 
 #notes /issues
 #didn't month because I couldn't figure it out
 #how can we ask the models for integers
 
+plot(ccber_ssparrow_model)
 ```
 
-Questions for Bruce:
--is birds_all the data format we want? right now when we use it we get really low predictions, and we suspect it is because its by day and there are a ton of zeros????
--would it help to aggregate by month? or use tidy data?
--OR is there something in the model code we can change to better capture the month and year dynamics
+##Tidy model and visualize - CCBER
 
--how to get integers? 
+```{r}
+
+ccber_ssparrow_tidy <- broom::tidy(ccber_ssparrow_model)
+
+#we want the actual counts per year for song sparrows, so use the `birds_summmary_year` df
+
+ssparrow_by_year <- bird_summary_month_yr %>% 
+  filter(species == "song sparrow") %>% 
+  filter(month == 7) %>%
+  filter(year != 2017)
+
+#we need data for 1996 - 2000, going to create a dataframe with count = 0 
+
+month <- rep(7,7)
+year <- c(1996, 1997, 1998, 1999, 2000, 2004, 2005)
+species <- c("song sparrow", "song sparrow", "song sparrow", "song sparrow","song sparrow","song sparrow", "song sparrow")
+count <- rep(0,7)
+
+#make into dataframe
+missing_ss <- data.frame(month, year,species,count)
+
+ssparrow_jul <- bind_rows(missing_ss, ssparrow_by_year)
+
+#bind obs and predictions
+ssparrow_complete <- data.frame(ssparrow_jul, ssparrow_predict)
+
+#bind 
+
+ssparrow <- ggplot(data = ssparrow_complete, aes(x = year, y = count)) +
+  geom_point()+
+  geom_line(aes(x = year, y = ssparrow_predict)) +
+  theme_minimal()
+
+ssparrow
+```
+
+Calculate growth rates
+```{r}
+
+#create a new column in sparrow complete that calculates r based on the year before
+
+ssparrow_gr <- ssparrow_complete %>% 
+  mutate(
+    r = log(lag(ssparrow_predict)/ssparrow_predict)
+  )
+
+#graph - what should we test?
+
+ggplot(ssparrow_gr, aes(x = year, y = r))+
+  geom_line()+
+  theme_minimal()+
+  geom_hline(yintercept = 0)
+
+
+```
+
+
+
+
+
+###BBS - Song Sparrow
+```{r}
+#filter out song sparrow
+
+bbs_ssparrow <- bbs_clean %>% 
+  filter(species == "song sparrow")
+
+#run GAM 
+bbs_ssparrow_model <- mgcv::gam(species_total ~ s(year), family = poisson, data = bbs_ssparrow)
+
+summary(bbs_ssparrow_model)
+
+plot(bbs_ssparrow_model)
+
+
+
+```
+
