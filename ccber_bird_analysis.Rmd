@@ -15,6 +15,8 @@ library(janitor)
 library(lubridate)
 library(mgcv)
 library(broom)
+library(patchwork)
+library(RColorBrewer)
 
 
 #read in our data
@@ -160,22 +162,23 @@ finch_sparrow_only <- bird_species_tidy %>%
 yearly_abundance_graph <- ggplot(bird_summary_year, aes(x = year, y = count, group = species))+ 
   geom_line(aes(color = species))+
   theme_minimal()+
-  labs(x = "Year", y = "Count", title = "Yearly passerine count at  Lagoon Island 1996 - 2017")+
+  labs(x = "Year", y = "Count", title = "Yearly passerine count at  Lagoon Island 1996 - 2017", color = "Species")+
   scale_y_continuous(expand = c(0,0))+
   geom_vline(xintercept = 2005, linetype = "dashed")
 
 yearly_abundance_graph
 
 yearly_abundance_graph +
-  scale_color_paletteer_d("calecopal::figmtn")
+  scale_color_paletteer_d("ggthemes::Summer")
 
+ggsave("count_all_yr.png", width = 6, height = 3, units = "in")
 
 #just sparrow and finch 
 
 sparrow_finch_gg <- ggplot(finch_sparrow_only, aes(x = year, y = count, group = species)) +
   geom_line(aes(color = species))+
   theme_minimal()+
-  labs(x = "Year", y = "Count", title = "Yearly house finch and song sparrow count at  Lagoon Island 1996 - 2017")+
+  labs(x = "Year", y = "Count", title = "Yearly house finch and song sparrow count at  Lagoon Island 1996 - 2017", color = "Species")+
   scale_y_continuous(expand = c(0,0))+
   geom_vline(xintercept = 2005, linetype = "dashed")+
   scale_color_paletteer_d("calecopal::lake")
@@ -183,15 +186,15 @@ sparrow_finch_gg <- ggplot(finch_sparrow_only, aes(x = year, y = count, group = 
 sparrow_finch_gg
 
 
-#by month
+#by month - comment out because we don't really want it and it doesn't run 
 
-monthy_ab_graph <- ggplot(bird_summary_month, aes(x = month, y = count, group = species))+ 
-  geom_line(aes(color = species))+
-  theme_minimal()+
-  labs(x = "Month", y = "Count", title = "Monthly passerine count at Lagoon Island 1996 - 2017")+
-  scale_y_continuous(expand = c(0,0))
-
-monthy_ab_graph
+# monthy_ab_graph <- ggplot(bird_summary_month, aes(x = month, y = count, group = species))+ 
+#   geom_line(aes(color = species))+
+#   theme_minimal()+
+#   labs(x = "Month", y = "Count", title = "Monthly passerine count at Lagoon Island 1996 - 2017")+
+#   scale_y_continuous(expand = c(0,0))
+# 
+# monthy_ab_graph
 
 
 
@@ -244,7 +247,7 @@ ssparrow_predict
 plot(ccber_ssparrow_model)
 ```
 
-##Tidy model and visualize - CCBER
+Tidy model and visualize 
 
 ```{r}
 
@@ -276,10 +279,13 @@ ssparrow_complete <- data.frame(ssparrow_jul, ssparrow_predict)
 
 ssparrow <- ggplot(data = ssparrow_complete, aes(x = year, y = count)) +
   geom_point()+
-  geom_line(aes(x = year, y = ssparrow_predict)) +
-  theme_minimal()
+  geom_line(aes(x = year, y = ssparrow_predict), color = "paleturquoise3") +
+  theme_minimal()+
+  labs(x = "Year", y = "Abundance")
 
 ssparrow
+
+ggsave("count_v_predict.png", width = 6, height = 3, units = "in")
 ```
 
 Calculate growth rates
@@ -294,16 +300,47 @@ ssparrow_gr <- ssparrow_complete %>%
 
 #graph - what should we test?
 
-ggplot(ssparrow_gr, aes(x = year, y = r))+
-  geom_line()+
+ssparrow_r <- ggplot(ssparrow_gr, aes(x = year, y = r))+
+  geom_line(color = "sienna2")+
   theme_minimal()+
-  geom_hline(yintercept = 0)
+  geom_hline(yintercept = 0)+
+  geom_vline(xintercept = 1995)+
+  geom_vline(xintercept = 2005, linetype = "dotted")+
+  labs(x = "Year", y = "Growth rate (r)")
+
+ssparrow_r
+
+ggsave("ssparrow_growthrate.png", width = 6, height = 3, units = "in")
 
 
+#find averages
+
+ss_ccber_before <- ssparrow_gr %>% 
+  filter(year < 2006) %>% 
+  filter(year != 1996)
+
+mean(ss_ccber_before$r)
+
+
+ss_ccber_after <- ssparrow_gr %>% 
+  filter(year > 2005)
+
+mean(ss_ccber_after$r)
 ```
 
 
 
+
+
+
+
+
+Combine graphs using patchwork - this is more for knitting
+```{r}
+
+ssparrow + ssparrow_r
+
+```
 
 
 ###BBS - Song Sparrow
@@ -311,7 +348,11 @@ ggplot(ssparrow_gr, aes(x = year, y = r))+
 #filter out song sparrow
 
 bbs_ssparrow <- bbs_clean %>% 
-  filter(species == "song sparrow")
+  filter(species == "song sparrow") %>% 
+  group_by(year) %>% 
+  summarize(
+    species_total = sum(species_total)
+  )
 
 #run GAM 
 bbs_ssparrow_model <- mgcv::gam(species_total ~ s(year), family = poisson, data = bbs_ssparrow)
@@ -320,7 +361,50 @@ summary(bbs_ssparrow_model)
 
 plot(bbs_ssparrow_model)
 
+#create new data frame for predictions
+newd_bbs <- data.frame(year = 1996:2016)
 
+#predict abundance using new data
+
+ssparrow_predict_bbs <- predict.gam(bbs_ssparrow_model, newd_bbs, type="response")
+
+ssparrow_predict_bbs
 
 ```
+
+Join observations and predictions
+```{r}
+
+ssparrow_complete_bbs <- data.frame(bbs_ssparrow, ssparrow_predict_bbs)
+
+ssparrow_gr_bbs <- ssparrow_complete_bbs %>% 
+  mutate(
+    r = log(lag(ssparrow_predict_bbs)/ssparrow_predict_bbs)
+  )
+
+ssparrow_bbs <- ggplot(data = ssparrow_complete_bbs, aes(x = year, y = species_total)) +
+  geom_point()+
+  geom_line(aes(x = year, y = ssparrow_predict_bbs), color = "steelblue3") +
+  theme_minimal()+
+  labs(x = "Year", y = "Abundance")
+
+ssparrow_bbs
+
+ggsave("count_v_predict_bbs.png", width = 6, height = 3, units = "in")
+
+
+ssparrow_bbs_r <- ggplot(ssparrow_gr_bbs, aes(x = year, y = r))+
+  geom_line(color = "sienna2")+
+  theme_minimal()+
+  geom_hline(yintercept = 0)+
+  geom_vline(xintercept = 1995)+
+  geom_vline(xintercept = 2005, linetype = "dotted")+
+  labs(x = "Year", y = "Growth rate (r)")
+
+ssparrow_bbs_r
+
+ggsave("ssparrow_bbs_growthrate.png", width = 6, height = 3, units = "in")
+
+```
+
 
