@@ -17,6 +17,7 @@ library(mgcv)
 library(broom)
 library(patchwork)
 library(RColorBrewer)
+library(gt)
 
 
 #read in our data
@@ -295,7 +296,7 @@ Calculate growth rates
 
 ssparrow_gr <- ssparrow_complete %>% 
   mutate(
-    r = log(lag(ssparrow_predict)/ssparrow_predict)
+    r = log(lead(ssparrow_predict)/ssparrow_predict)
   )
 
 #graph - what should we test?
@@ -310,7 +311,7 @@ ssparrow_r <- ggplot(ssparrow_gr, aes(x = year, y = r))+
 
 ssparrow_r
 
-ggsave("ssparrow_growthrate.png", width = 6, height = 3, units = "in")
+ggsave("ssparrow_gr_ccber.png", width = 6, height = 3, units = "in")
 
 
 #find averages
@@ -319,20 +320,41 @@ ss_ccber_before <- ssparrow_gr %>%
   filter(year < 2006) %>% 
   filter(year != 1996)
 
-mean(ss_ccber_before$r)
+ss_avg_bef_ccber <- mean(ss_ccber_before$r)
 
 
 ss_ccber_after <- ssparrow_gr %>% 
-  filter(year > 2005)
+  filter(year > 2014)
 
-mean(ss_ccber_after$r)
+ss_avg_after_15 <- mean(ss_ccber_after$r)
+
+
+#Make a dataframe with averages 
+
+Dates <- c(2005, 2010,2015)
+Before <- c(ss_avg_bef, ss_avg_bef, ss_avg_bef)
+After <- c(ss_avg_after, ss_avg_after_10, ss_avg_after_15)
+
+average_table <- data.frame(Dates, Before, After)
+ 
+avg_table_nice<- average_table %>% 
+  gt() %>% 
+  tab_header(
+    title = "Average song sparrow growth rate before and after restoration",
+    subtitle = "Averages were calculated for one (2005), five (2020) and 10 (2015) years after restoration"
+  ) %>% 
+  tab_options(
+    table.width = pct(80) #this refers to 80% of the page width
+  )
+  # data_color(
+  #   columns = vars(After),
+  #   colors = scales::col_numeric(
+  #     palette = c("orange","red","purple"),
+  #     domain = c(88,190)
+  #   )
+  # )
+
 ```
-
-
-
-
-
-
 
 
 Combine graphs using patchwork - this is more for knitting
@@ -372,6 +394,7 @@ ssparrow_predict_bbs
 
 ```
 
+
 Join observations and predictions
 ```{r}
 
@@ -379,7 +402,7 @@ ssparrow_complete_bbs <- data.frame(bbs_ssparrow, ssparrow_predict_bbs)
 
 ssparrow_gr_bbs <- ssparrow_complete_bbs %>% 
   mutate(
-    r = log(lag(ssparrow_predict_bbs)/ssparrow_predict_bbs)
+    r = log(lead(ssparrow_predict_bbs)/ssparrow_predict_bbs)
   )
 
 ssparrow_bbs <- ggplot(data = ssparrow_complete_bbs, aes(x = year, y = species_total)) +
@@ -407,4 +430,30 @@ ggsave("ssparrow_bbs_growthrate.png", width = 6, height = 3, units = "in")
 
 ```
 
+Calculate growth rates
+```{r}
+
+ss_bbs_before <- ssparrow_gr_bbs %>% 
+  filter(year < 2006) %>% 
+  filter(year != 1996)
+
+ss_bbs_bef <- mean(ss_bbs_before$r)
+
+
+ss_bbs_after <- ssparrow_gr_bbs %>% 
+  filter(year > 2009)
+
+ss_bbs_after_10 <- mean(ss_bbs_after$r)
+
+
+#Make a dataframe with averages 
+
+Dates <- c(2005, 2010,2015)
+Before <- c(ss_bbs_bef, ss_bbs_bef, ss_bbs_bef)
+After <- c(ss_bbs_after_5, ss_bbs_after_10, ss_bbs_after_15)
+
+average_table_bbs <- data.frame(Dates, Before, After)
+
+
+```
 
