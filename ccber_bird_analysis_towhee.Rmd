@@ -1,0 +1,307 @@
+---
+title: "ccber_bird_analysis_towhee"
+author: "Robert Heim"
+date: "3/22/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Analysis: California towhee
+
+###CCBER
+**Model**
+
+```{r}
+#Go back to data read in `birds_all_clean` - pre major wrangling 
+#Pick a species - California towhee
+
+birds_ctowhee <- birds_all_clean %>%
+  filter(species == "California Towhee")
+
+#Run GAM on CCBER data
+
+ccber_ctowhee_model <- mgcv::gam(lagoon_island_zone_summary ~ s(year) + month, family = poisson, data = birds_ctowhee) #this gives you the log transformed abudnance
+
+summary(ccber_ctowhee_model)
+
+#create new data frame to use with the model
+newd <- data.frame(year = 1996:2016, month = "Jul")
+
+#predict abundance using new data, type predict shows actual abudance instead of log
+
+ctowhee_predict <- predict.gam(ccber_ctowhee_model, newd, type="response")
+
+ctowhee_predict
+
+#notes /issues
+#didn't month because I couldn't figure it out
+#how can we ask the models for integers
+
+plot(ccber_ctowhee_model)
+
+ctowhee_test <- lm(lagoon_island_zone_summary~year+ month, data = birds_ctowhee)
+
+summary(ctowhee_test)
+```
+
+Tidy model and visuzalize
+
+```{r}
+
+ccber_ctowhee_tidy <- broom::tidy(ccber_ctowhee_model) #this didn't end up being necessary
+
+#we want the actual counts per year for towhees, so use the `birds_summmary_year` df
+
+ctowhee_by_year <- bird_summary_month_yr %>% 
+  filter(species == "california towhee") %>% 
+  filter(month == 7) %>%
+  filter(year != 2017)
+
+#we need data for 1996 - 2000, going to create a dataframe with count = 0 
+#years will be different for Bewick's Wren
+
+month <- rep(6,6)
+year <- c(1996, 1997, 1998, 2000, 2001, 2005)
+species <- c("california towhee", "california towhee", "california towhee", "california towhee","california towhee","california towhee")
+count <- rep(0,6)
+
+#make into dataframe
+missing_ct <- data.frame(month, year,species,count)
+
+ctowhee_jul <- bind_rows(missing_ct, ctowhee_by_year)
+
+#bind obs and predictions
+ctowhee_complete <- data.frame(ctowhee_jul, ctowhee_predict)
+
+
+ctowhee <- ggplot(data = ctowhee_complete, aes(x = year, y = count)) +
+  geom_point()+
+  geom_line(aes(x = year, y = ctowhee_predict), color = "palegreen3") +
+  theme_minimal()+
+  labs(x = "Year", y = "Abundance", title="Observed California towhee counts versus predicted abundance")
+
+ctowhee
+
+ggsave("count_v_predict.png", width = 6, height = 3, units = "in")
+```
+
+**Calculate growth rates**
+
+```{r}
+
+#create a new column in ctowhee complete that calculates r based on the year before using the log equation
+
+ctowhee_gr <- ctowhee_complete %>% 
+  mutate(
+    r = log(lead(ctowhee_predict)/ctowhee_predict)
+  )
+
+#graph - what should we test?
+
+ctowhee_r <- ggplot(ctowhee_gr, aes(x = year, y = r))+
+  geom_line(color = "sienna2")+
+  theme_minimal()+
+  geom_hline(yintercept = 0)+
+  geom_vline(xintercept = 1995)+
+  geom_vline(xintercept = 2005, linetype = "dotted")+
+  labs(x = "Year", y = "Growth rate (r)")
+
+ctowhee_r
+
+ggsave("ctowhee_gr_ccber.png", width = 6, height = 3, units = "in")
+
+
+#find averages - I didn't make a new data frame for each test I just changed the names and re -ran this code
+
+ct_ccber_before <- ctowhee_gr %>% 
+  filter(year < 2006) %>% 
+  filter(year != 2016)
+
+ct_avg_bef_ccber <- mean(ct_ccber_before$r) #this always stays the same
+sd_bef<- sd(ct_ccber_before$r) # feed in a vector
+se_bef <- sd_bef/sqrt(nrow(ct_ccber_before)) #calculate se 
+
+ct_ccber_after <- ctowhee_gr %>% 
+  filter(year > 2005) %>% 
+  filter(year != 2016)
+
+#redo for 5 and 10 years after restoration
+
+ct_avg_after_5 <- mean(ct_ccber_after$r)
+sd_after_5<- sd(ct_ccber_after$r) # feed in a vector
+se_after_5<- sd_bef/sqrt(nrow(ct_ccber_after))
+
+ct_ccber_after_10 <- ctowhee_gr %>% 
+  filter(year > 2010) %>% 
+  filter(year != 2016)
+
+ct_avg_after_10 <- mean(ct_ccber_after_10$r)
+sd_after_10<- sd(ct_ccber_after_10$r) # feed in a vector
+se_after_10<- sd_bef/sqrt(nrow(ct_ccber_after_10))
+
+#Make a dataframe with averages - this didn't work, try later
+
+# Dates <- c(2005, 2010,2015)
+# Before <- c(ss_avg_bef, ss_avg_bef, ss_avg_bef)
+# After <- c(ss_avg_after, ss_avg_after_10, ss_avg_after_15)
+# 
+# average_table <- data.frame(Dates, Before, After)
+#  
+# avg_table_nice<- average_table %>% 
+#   gt() %>% 
+#   tab_header(
+#     title = "Average song sparrow growth rate before and after restoration",
+#     subtitle = "Averages were calculated for one (2005), five (2020) and 10 (2015) years after restoration"
+#   ) %>% 
+#   tab_options(
+#     table.width = pct(80) #this refers to 80% of the page width
+#   )
+  # data_color(
+  #   columns = vars(After),
+  #   colors = scales::col_numeric(
+  #     palette = c("orange","red","purple"),
+  #     domain = c(88,190)
+  #   )
+  # )
+
+```
+
+Combine graphs using patchwork - this is more for knitting
+
+```{r}
+
+ctowhee + ctowhee_r
+
+# May want to change y-axis scale
+
+```
+
+
+###BBS
+
+```{r}
+
+#filter out song sparrow
+
+bbs_ctowhee <- bbs_clean %>% 
+  filter(species == "california towhee") %>% 
+  group_by(year) %>% 
+  summarize(
+    species_total = sum(species_total)
+  )
+
+#run GAM 
+bbs_ctowhee_model <- mgcv::gam(species_total ~ s(year), family = poisson, data = bbs_ctowhee)
+
+summary(bbs_ctowhee_model)
+
+plot(bbs_ctowhee_model)
+
+#create new data frame for predictions
+newd_ctowhee_bbs <- data.frame(year = 1996:2016)
+
+#predict abundance using new data
+
+ctowhee_predict_bbs <- predict.gam(bbs_ctowhee_model, newd_ctowhee_bbs, type="response")
+
+ctowhee_predict_bbs
+
+```
+
+Join observations and predictions
+```{r}
+
+ctowhee_complete_bbs <- data.frame(bbs_ctowhee, ctowhee_predict_bbs)
+
+ctowhee_gr_bbs <- ctowhee_complete_bbs %>% 
+  mutate(
+    r = log(lead(ctowhee_predict_bbs)/ctowhee_predict_bbs)
+  )
+
+#note - this graph of the model prediction + observation for BBS is all the data because it is compiled by year
+ctowhee_bbs <- ggplot(data = ctowhee_complete_bbs, aes(x = year, y = species_total)) +
+  geom_point()+
+  geom_line(aes(x = year, y = ctowhee_predict_bbs), color = "springgreen4") +
+  theme_minimal()+
+  labs(x = "Year", y = "Abundance")
+
+ctowhee_bbs
+
+ggsave("count_v_predict_bbs.png", width = 6, height = 3, units = "in")
+
+
+ctowhee_bbs_r <- ggplot(ctowhee_gr_bbs, aes(x = year, y = r))+
+  geom_line(color = "sienna2")+
+  theme_minimal()+
+  geom_hline(yintercept = 0)+
+  geom_vline(xintercept = 1995)+
+  geom_vline(xintercept = 2005, linetype = "dotted")+
+  labs(x = "Year", y = "Growth rate (r)")
+
+ctowhee_bbs_r
+
+ggsave("ctowhee_bbs_growthrate.png", width = 6, height = 3, units = "in")
+
+```
+
+**Calculate growth rates**
+```{r}
+
+#df
+ct_bbs_before <- ctowhee_gr_bbs %>% 
+  filter(year < 2006) %>% 
+  filter(year != 2016)
+
+#numbers before restoration
+ct_bbs_bef <- mean(ct_bbs_before$r)
+sd_bbs_bef<- sd(ct_bbs_before$r) # feed in a vector
+se_bbs_bef <- sd_bef/sqrt(nrow(ct_bbs_before)) #calculate se 
+
+#df
+ct_bbs_after <- ctowhee_gr_bbs %>% 
+  filter(year > 2005) %>% 
+  filter(year != 2016)
+
+#numbers 5 and 10 years after restoration
+
+ct_bbs_after_5 <- mean(ct_bbs_after$r)
+sd_bbs_after_5<- sd(ct_bbs_after$r) # feed in a vector
+se_bbs_after_5 <- sd_bef/sqrt(nrow(ct_bbs_after))
+
+ct_bbs_after_10 <- ctowhee_gr_bbs %>% 
+  filter(year > 2010) %>% 
+  filter(year != 2016)
+
+ct_avg_bbs_after_10 <- mean(ct_bbs_after_10$r)
+sd_bbs_after_10<- sd(ct_bbs_after_10$r) # feed in a vector
+se_bbs_after_10 <- sd_bef/sqrt(nrow(ct_bbs_after_10))
+                               
+#Make a dataframe with averages - try again later
+# 
+# Dates <- c(2005, 2010,2015)
+# Before <- c(ss_bbs_bef, ss_bbs_bef, ss_bbs_bef)
+# After <- c(ss_bbs_after_5, ss_bbs_after_10, ss_bbs_after_15)
+# 
+# average_table_bbs <- data.frame(Dates, Before, After)
+
+
+```
+
+
+**Test if difference between growth rates for CCBER and BBS is significant for california towhee**
+
+```{r}
+
+#three tests: before, after 2005, after 2010. 
+
+t.test(ct_ccber_before$r, ct_bbs_before$r, conf.level = 0.95, paired= TRUE)
+
+t.test(ct_ccber_after$r,ct_bbs_after$r, conf.level = 0.95, paired = TRUE)
+
+t.test(ct_ccber_after_10$r,ct_bbs_after_10$r, conf.level = 0.95, paired = TRUE)
+
+```
+

@@ -1,8 +1,8 @@
 ---
-title: "Analyzing passerine response to restoration on lagoon island"
+title: "Analyzing passerine response to restoration on Lagoon Island, UCSB"
 author: "Madeline Berger, Renee Albretch, Robert Heim"
 date: "2/17/2020"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -34,7 +34,9 @@ bbs_all <- read_csv("bbs_data_all.csv") %>%
 
 ##Introduction: Description of Data and Project
 
-The CCBER at UC Santa Barbara has been monitoring bird populations on and near campus since 1996. In 2005, the University began oak restoration...
+Efforts to remove invasive grasses and restore coastal sage scrub and oak woodlands are widespread throughout California. The goal of most of these restoration projects is to improve and restore ecosystem structure and functioning under the assumption that doing so will support populations of native wildlife (Gardali et al., 2006). Unfortunately, the impact of these restoration projects on local species populations is often unknown (Brawn et al., 2006). This makes it challenging to assess whether a restoration initiative has been successful. Restoration projects benefit from studies that evaluate the impacts of restoration efforts on local wildlife populations because findings from these studies can inform strategies to refine future restoration efforts (Ruiz‐Jaen et al., 2005). Furthermore, providing tangible evidence of restoration success can be beneficial for securing funding for future restoration initiatives. 
+
+The Cheadle Center for Biodiversity and Ecological Restoration (CCBER) has conducted oak woodland and coastal sage scrub restoration activities on Lagoon Island on the campus of the University of California, Santa Barbara intermittently since 2005. Research has suggested that restoration activities in small patches of habitat, such as those on Lagoon Island, can increase reproductive success and breeding density of savannah and woodland birds (Brawn et al., 2006). In this analysis, we evaluate the impact of restoration efforts on Lagoon Island for two species of local songbirds: Song Sparrows and the California Towhee.
 
 ###Data cleaning - CCBER
 ```{r}
@@ -150,9 +152,9 @@ bird_summary_month_yr <- bird_species_tidy %>%
   )
 
 #change to sparrow bewicks only
-finch_sparrow_only <- bird_species_tidy %>% 
+sparrow_towhee_only <- bird_species_tidy %>% 
   select(-location) %>% 
-  filter(species == "song sparrow" | species == "house finch") %>% 
+  filter(species == "song sparrow" | species == "california towhee") %>% 
   group_by(year, species) %>% 
   summarize(
     count = length(species)
@@ -162,54 +164,25 @@ finch_sparrow_only <- bird_species_tidy %>%
 yearly_abundance_graph <- ggplot(bird_summary_year, aes(x = year, y = count, group = species))+ 
   geom_line(aes(color = species))+
   theme_minimal()+
-  labs(x = "Year", y = "Count", title = "Yearly passerine count at  Lagoon Island 1996 - 2016", color = "Species")+
+  labs(x = "Year", y = "Count", title = "Yearly passerine count at Lagoon Island 1996 - 2016", color = "Species")+
   scale_y_continuous(expand = c(0,0))+
-  geom_vline(xintercept = 2005, linetype = "dashed")
-
-yearly_abundance_graph
-
-yearly_abundance_graph +
+  geom_vline(xintercept = 2005, linetype = "dashed")+
   scale_color_paletteer_d("ggthemes::Summer")
 
+yearly_abundance_graph
 ggsave("count_all_yr.png", width = 6, height = 3, units = "in")
 
 #just sparrow and finch 
 
-sparrow_finch_gg <- ggplot(finch_sparrow_only, aes(x = year, y = count, group = species)) +
+sparrow_towhee_gg <- ggplot(sparrow_towhee_only, aes(x = year, y = count, group = species)) +
   geom_line(aes(color = species))+
   theme_minimal()+
-  labs(x = "Year", y = "Count", title = "Yearly house finch and song sparrow count at  Lagoon Island 1996 - 2017", color = "Species")+
+  labs(x = "Year", y = "Count", title = "Yearly house finch and song sparrow count, Lagoon Island 1996 - 2017", color = "Species")+
   scale_y_continuous(expand = c(0,0))+
   geom_vline(xintercept = 2005, linetype = "dashed")+
-  scale_color_paletteer_d("calecopal::lake")
+  scale_color_manual(breaks = c("song sparrow", "california towhee"), values = c("paleturquoise2", "seagreen3"))
   
-sparrow_finch_gg
-
-
-#by month - comment out because we don't really want it and it doesn't run 
-
-# monthy_ab_graph <- ggplot(bird_summary_month, aes(x = month, y = count, group = species))+ 
-#   geom_line(aes(color = species))+
-#   theme_minimal()+
-#   labs(x = "Month", y = "Count", title = "Monthly passerine count at Lagoon Island 1996 - 2017")+
-#   scale_y_continuous(expand = c(0,0))
-# 
-# monthy_ab_graph
-
-
-
-```
-
-Exporting Graphs - can also just use `ggsave()`
-```{r}
-png("graph_1.png", units = "in", width = 6, height = 3, res = 300)
-
-ggplot(bird_summary_year, aes(x = year, y = count, group = species))+ 
-  geom_line(aes(color = species))+
-  theme_minimal()+
-  labs(x = "Year", y = "Count", title = "Yearly passerine count at  Lagoon Island 1996 - 2017")+
-  scale_y_continuous(expand = c(0,0)) +
-  geom_vline(xintercept = 2005)
+sparrow_towhee_gg
 
 
 ```
@@ -219,7 +192,9 @@ ggplot(bird_summary_year, aes(x = year, y = count, group = species))+
 
 ###CCBER data
 **Model**
-```{r}
+We fit a GAM on our observation data, and then used that to predict yearly abundance, in July, for the species.
+<br>
+```{r, results=FALSE}
 #go back to data read in `birds_all_clean` - pre major wrangling 
 #pick a species
 
@@ -250,11 +225,11 @@ plot(ccber_ssparrow_model)
 
 ssparrow_test <- lm(lagoon_island_zone_summary~year+ month, data = birds_ssparrow)
 
-summary(ssparrow_test)
+#summary(ssparrow_test)
 ```
 
 Tidy model and visualize 
-
+<br>
 ```{r}
 
 ccber_ssparrow_tidy <- broom::tidy(ccber_ssparrow_model) #this didn't end up being necessary
@@ -293,39 +268,6 @@ ssparrow
 #ggsave("count_v_predict.png", width = 6, height = 3, units = "in")
 ```
 
-Also graph all predictions with all observations, per Bruce's suggestion
-Note - this isn't working, because I can't get the data to line up with predictions so may just let it go
-```{r}
-#create a new data frame for predict to run on - tricky because you need all the months, use the seq function from base r
-# 
-# dates_all <- seq(as.Date("1996/1/1"), as.Date("2016/12/1"), by = "month")
-# 
-# newd_all <- data.frame(dates_all) %>% 
-#   mutate(
-#     year = year(dates_all),
-#     Month = month(dates_all, label = TRUE) #this needs to be true because our model wants a categorical month variable
-#   ) %>% 
-#   select(-dates_all)
-# 
-# sparrow_predict_year <- predict.gam(ccber_ssparrow_model, newd_all, type="response")
-# 
-# sparrow_predict_counts <- rbind(newd_all, sparrow_predict_year)
-# 
-# #make data frame to bind predictions to - this isn't working because I can't get it to ungroup which is annoying
-# ALL_ssparrow_by_year <- bird_summary_month_yr %>% 
-#   filter(species == "song sparrow")
-# 
-# 
-# ssparrow_ALL <- ggplot(data = ALL_ssparrow_by_year, aes(x = year, y = count)) +
-#   geom_point()+
-#   geom_line(aes(x = year, y = ssparrow_predict_year), color = "paleturquoise") +
-#   theme_minimal()+
-#   labs(x = "Year", y = "Abundance")
-# 
-# ssparrow_ALL
-
-```
-
 
 **Calculate growth rates**
 ```{r}
@@ -356,44 +298,20 @@ ggsave("ssparrow_gr_ccber.png", width = 6, height = 3, units = "in")
 
 ss_ccber_before <- ssparrow_gr %>% 
   filter(year < 2006) %>% 
-  filter(year != 1996)
+  filter(year != 2016)
 
 ss_avg_bef_ccber <- mean(ss_ccber_before$r) #this always stays the same
 sd_bef<- sd(ss_ccber_before$r) # feed in a vector
 se_bef <- sd_bef/sqrt(nrow(ss_ccber_before)) #calculate se 
 
 ss_ccber_after <- ssparrow_gr %>% 
-  filter(year > 2005) %>% 
+  filter(year > 2010) %>% 
   filter(year != 2016)
 
 ss_avg_after_5 <- mean(ss_ccber_after$r)
 sd_after_5<- sd(ss_ccber_after$r) # feed in a vector
 se_after_5<- sd_bef/sqrt(nrow(ss_ccber_after))
 
-#Make a dataframe with averages - this didn't work, try later
-
-# Dates <- c(2005, 2010,2015)
-# Before <- c(ss_avg_bef, ss_avg_bef, ss_avg_bef)
-# After <- c(ss_avg_after, ss_avg_after_10, ss_avg_after_15)
-# 
-# average_table <- data.frame(Dates, Before, After)
-#  
-# avg_table_nice<- average_table %>% 
-#   gt() %>% 
-#   tab_header(
-#     title = "Average song sparrow growth rate before and after restoration",
-#     subtitle = "Averages were calculated for one (2005), five (2020) and 10 (2015) years after restoration"
-#   ) %>% 
-#   tab_options(
-#     table.width = pct(80) #this refers to 80% of the page width
-#   )
-  # data_color(
-  #   columns = vars(After),
-  #   colors = scales::col_numeric(
-  #     palette = c("orange","red","purple"),
-  #     domain = c(88,190)
-  #   )
-  # )
 
 ```
 
@@ -484,7 +402,7 @@ se_bbs_bef <- sd_bef/sqrt(nrow(ss_bbs_before)) #calculate se
 
 #df
 ss_bbs_after <- ssparrow_gr_bbs %>% 
-  filter(year > 2005) %>% 
+  filter(year > 2010) %>% 
   filter(year != 2016)
 
 #numbers
@@ -493,8 +411,268 @@ sd_bbs_after_5<- sd(ss_bbs_after$r) # feed in a vector
 se_bbs_after_5 <- sd_bef/sqrt(nrow(ss_bbs_after))
 
 
+```
+
+**Test if difference between growth rates for CCBER and BBS is significant**
+
+```{r}
+
+#three tests: before, after 2005, after 2010. 
+
+t.test(ss_ccber_before$r, ss_bbs_before$r, conf.level = 0.95, paired = TRUE)
+
+t.test(ss_ccber_after$r,ss_bbs_after$r, conf.level = 0.95, paired = TRUE)
+
+```
 
 
+
+##Analysis: California towhee
+
+###CCBER
+**Model**
+```{r}
+#Go back to data read in `birds_all_clean` - pre major wrangling 
+#Pick a species - California towhee
+
+birds_ctowhee <- birds_all_clean %>%
+  filter(species == "California Towhee")
+
+#Run GAM on CCBER data
+
+ccber_ctowhee_model <- mgcv::gam(lagoon_island_zone_summary ~ s(year) + month, family = poisson, data = birds_ctowhee) #this gives you the log transformed abudnance
+
+summary(ccber_ctowhee_model)
+
+#create new data frame to use with the model
+newd <- data.frame(year = 1996:2016, month = "Jul")
+
+#predict abundance using new data, type predict shows actual abudance instead of log
+
+ctowhee_predict <- predict.gam(ccber_ctowhee_model, newd, type="response")
+
+ctowhee_predict
+
+#notes /issues
+#didn't month because I couldn't figure it out
+#how can we ask the models for integers
+
+plot(ccber_ctowhee_model)
+
+ctowhee_test <- lm(lagoon_island_zone_summary~year+ month, data = birds_ctowhee)
+
+summary(ctowhee_test)
+```
+
+**Tidy model and visuzalize**
+
+```{r}
+
+ccber_ctowhee_tidy <- broom::tidy(ccber_ctowhee_model) #this didn't end up being necessary
+
+#we want the actual counts per year for towhees, so use the `birds_summmary_year` df
+
+ctowhee_by_year <- bird_summary_month_yr %>% 
+  filter(species == "california towhee") %>% 
+  filter(month == 7) %>%
+  filter(year != 2017)
+
+#we need data for 1996 - 2000, going to create a dataframe with count = 0 
+#years will be different for Bewick's Wren
+
+month <- rep(6,6)
+year <- c(1996, 1997, 1998, 2000, 2001, 2005)
+species <- c("california towhee", "california towhee", "california towhee", "california towhee","california towhee","california towhee")
+count <- rep(0,6)
+
+#make into dataframe
+missing_ct <- data.frame(month, year,species,count)
+
+ctowhee_jul <- bind_rows(missing_ct, ctowhee_by_year)
+
+#bind obs and predictions
+ctowhee_complete <- data.frame(ctowhee_jul, ctowhee_predict)
+
+
+ctowhee <- ggplot(data = ctowhee_complete, aes(x = year, y = count)) +
+  geom_point()+
+  geom_line(aes(x = year, y = ctowhee_predict), color = "palegreen3") +
+  theme_minimal()+
+  labs(x = "Year", y = "Abundance", title="Observed California towhee counts versus predicted abundance")
+
+ctowhee
+
+ggsave("count_v_predict.png", width = 6, height = 3, units = "in")
+```
+
+**Calculate growth rates**
+
+```{r}
+
+#create a new column in ctowhee complete that calculates r based on the year before using the log equation
+
+ctowhee_gr <- ctowhee_complete %>% 
+  mutate(
+    r = log(lead(ctowhee_predict)/ctowhee_predict)
+  )
+
+#graph - what should we test?
+
+ctowhee_r <- ggplot(ctowhee_gr, aes(x = year, y = r))+
+  geom_line(color = "sienna2")+
+  theme_minimal()+
+  geom_hline(yintercept = 0)+
+  geom_vline(xintercept = 1995)+
+  geom_vline(xintercept = 2005, linetype = "dotted")+
+  labs(x = "Year", y = "Growth rate (r)")
+
+ctowhee_r
+
+ggsave("ctowhee_gr_ccber.png", width = 6, height = 3, units = "in")
+
+
+#find averages - I didn't make a new data frame for each test I just changed the names and re -ran this code
+
+ct_ccber_before <- ctowhee_gr %>% 
+  filter(year < 2006) %>% 
+  filter(year != 2016)
+
+ct_avg_bef_ccber <- mean(ct_ccber_before$r) #this always stays the same
+sd_bef<- sd(ct_ccber_before$r) # feed in a vector
+se_bef <- sd_bef/sqrt(nrow(ct_ccber_before)) #calculate se 
+
+ct_ccber_after <- ctowhee_gr %>% 
+  filter(year > 2005) %>% 
+  filter(year != 2016)
+
+#redo for 5 and 10 years after restoration
+
+ct_avg_after_5 <- mean(ct_ccber_after$r)
+sd_after_5<- sd(ct_ccber_after$r) # feed in a vector
+se_after_5<- sd_bef/sqrt(nrow(ct_ccber_after))
+
+ct_ccber_after_10 <- ctowhee_gr %>% 
+  filter(year > 2010) %>% 
+  filter(year != 2016)
+
+ct_avg_after_10 <- mean(ct_ccber_after_10$r)
+sd_after_10<- sd(ct_ccber_after_10$r) # feed in a vector
+se_after_10<- sd_bef/sqrt(nrow(ct_ccber_after_10))
+
+
+
+```
+
+**Combine graphs using patchwork - this is more for knitting**
+
+```{r}
+
+ctowhee + ctowhee_r
+
+# May want to change y-axis scale
+
+```
+
+
+###BBS
+**Model**
+```{r}
+
+#filter out song sparrow
+
+bbs_ctowhee <- bbs_clean %>% 
+  filter(species == "california towhee") %>% 
+  group_by(year) %>% 
+  summarize(
+    species_total = sum(species_total)
+  )
+
+#run GAM 
+bbs_ctowhee_model <- mgcv::gam(species_total ~ s(year), family = poisson, data = bbs_ctowhee)
+
+summary(bbs_ctowhee_model)
+
+plot(bbs_ctowhee_model)
+
+#create new data frame for predictions
+newd_ctowhee_bbs <- data.frame(year = 1996:2016)
+
+#predict abundance using new data
+
+ctowhee_predict_bbs <- predict.gam(bbs_ctowhee_model, newd_ctowhee_bbs, type="response")
+
+ctowhee_predict_bbs
+
+```
+
+**Join observations and predictions**
+```{r}
+
+ctowhee_complete_bbs <- data.frame(bbs_ctowhee, ctowhee_predict_bbs)
+
+ctowhee_gr_bbs <- ctowhee_complete_bbs %>% 
+  mutate(
+    r = log(lead(ctowhee_predict_bbs)/ctowhee_predict_bbs)
+  )
+
+#note - this graph of the model prediction + observation for BBS is all the data because it is compiled by year
+ctowhee_bbs <- ggplot(data = ctowhee_complete_bbs, aes(x = year, y = species_total)) +
+  geom_point()+
+  geom_line(aes(x = year, y = ctowhee_predict_bbs), color = "springgreen4") +
+  theme_minimal()+
+  labs(x = "Year", y = "Abundance")
+
+ctowhee_bbs
+
+ggsave("count_v_predict_bbs.png", width = 6, height = 3, units = "in")
+
+
+ctowhee_bbs_r <- ggplot(ctowhee_gr_bbs, aes(x = year, y = r))+
+  geom_line(color = "sienna2")+
+  theme_minimal()+
+  geom_hline(yintercept = 0)+
+  geom_vline(xintercept = 1995)+
+  geom_vline(xintercept = 2005, linetype = "dotted")+
+  labs(x = "Year", y = "Growth rate (r)")
+
+ctowhee_bbs_r
+
+ggsave("ctowhee_bbs_growthrate.png", width = 6, height = 3, units = "in")
+
+```
+
+**Calculate growth rates**
+```{r}
+
+#df
+ct_bbs_before <- ctowhee_gr_bbs %>% 
+  filter(year < 2006) %>% 
+  filter(year != 2016)
+
+#numbers before restoration
+ct_bbs_bef <- mean(ct_bbs_before$r)
+sd_bbs_bef<- sd(ct_bbs_before$r) # feed in a vector
+se_bbs_bef <- sd_bef/sqrt(nrow(ct_bbs_before)) #calculate se 
+
+#df
+ct_bbs_after <- ctowhee_gr_bbs %>% 
+  filter(year > 2005) %>% 
+  filter(year != 2016)
+
+#numbers 5 and 10 years after restoration
+
+ct_bbs_after_5 <- mean(ct_bbs_after$r)
+sd_bbs_after_5<- sd(ct_bbs_after$r) # feed in a vector
+se_bbs_after_5 <- sd_bef/sqrt(nrow(ct_bbs_after))
+
+ct_bbs_after_10 <- ctowhee_gr_bbs %>% 
+  filter(year > 2010) %>% 
+  filter(year != 2016)
+
+ct_avg_bbs_after_10 <- mean(ct_bbs_after_10$r)
+sd_bbs_after_10<- sd(ct_bbs_after_10$r) # feed in a vector
+se_bbs_after_10 <- sd_bef/sqrt(nrow(ct_bbs_after_10))
+                               
 #Make a dataframe with averages - try again later
 # 
 # Dates <- c(2005, 2010,2015)
@@ -505,35 +683,20 @@ se_bbs_after_5 <- sd_bef/sqrt(nrow(ss_bbs_after))
 
 
 ```
-**Test if difference between growth rates for CCBER and BBS is significant**
+
+
+**Test if difference between growth rates for CCBER and BBS is significant for california towhee**
 
 ```{r}
 
 #three tests: before, after 2005, after 2010. 
 
-t.test(ss_ccber_before$r, ss_bbs_before$r, conf.level = 0.95)
+t.test(ct_ccber_before$r, ct_bbs_before$r, conf.level = 0.95, paired= TRUE)
 
-t.test(ss_ccber_after$r,ss_bbs_after$r, conf.level = 0.95)
+t.test(ct_ccber_after$r,ct_bbs_after$r, conf.level = 0.95, paired = TRUE)
+
+t.test(ct_ccber_after_10$r,ct_bbs_after_10$r, conf.level = 0.95, paired = TRUE)
 
 ```
-
-
-
-##Analysis: Bewick's Wren
-
-###CCBER
-**Model**
-
-Tidy model and visuzalize
-
-
-
-**Calculate growth rates**
-
-
-
-
-
-###BBS
 
 
