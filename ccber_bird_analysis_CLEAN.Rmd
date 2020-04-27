@@ -38,6 +38,14 @@ Efforts to remove invasive grasses and restore coastal sage scrub and oak woodla
 
 The Cheadle Center for Biodiversity and Ecological Restoration (CCBER) has conducted oak woodland and coastal sage scrub restoration activities on Lagoon Island on the campus of the University of California, Santa Barbara intermittently since 2005. Research has suggested that restoration activities in small patches of habitat, such as those on Lagoon Island, can increase reproductive success and breeding density of savannah and woodland birds (Brawn et al., 2006). In this analysis, we evaluate the impact of restoration efforts on Lagoon Island for two species of local songbirds: Song Sparrows and the California Towhee.
 
+##Main Findings
+
+- Population growth rate for Song Sparrows on Lagoon Island was positive for the 5 years following to native plant restoration, but negative for the subsequent 5 years, suggesting a possible short term benefit resulting from the restoration
+
+- California Towhee populations remained somewhat stable, with a slighly negative growth rate post-restoration
+
+- Overall, our statistical testing did not reveal that there was a significant difference between the growth rates of local Song Sparrow and California Towhee populations and the growth rates of the larger state populations. We are therefore not able to confidently attribute any trends we find in the local population to specific management actions, as they may simply reflect overall statewide trends for both these species.  
+
 ##A. Data Cleaning
 ###CCBER
 ```{r}
@@ -329,6 +337,8 @@ ssparrow + ssparrow_r
 
 ###Breeding Bird Survey
 We repeated the process above with data from the breeding bird survey. This will allow us to compare our findings from Lagoon Island to trends in the overall populations, helping us better understand if any changes we see are indeed a result of restoration or are reflecting a larger trend.  
+  
+  
 **Model**
 <br>
 ```{r, results= FALSE }
@@ -423,7 +433,7 @@ se_bbs_after_5 <- sd_bef/sqrt(nrow(ss_bbs_after))
 
 **Test if difference between growth rates for CCBER and BBS is significant**
 <br>
-```{r}
+```{r, reuslts= FALSE}
 
 #three tests: before, after 2005, after 2010. 
 
@@ -436,10 +446,15 @@ t.test(ss_ccber_after$r,ss_bbs_after$r, conf.level = 0.95, paired = TRUE)
 
 
 ##Analysis: California towhee
+  
+    
+    
+We repeated the process for a second species, the California Towhee. Again, we used observation data to estimate local abundances and growth rates, and compared that to background data for California Towhee's across the state of California from the breeding bird survey. 
+
 
 ###CCBER
 **Model**
-```{r}
+```{r, results = FALSE}
 #Go back to data read in `birds_all_clean` - pre major wrangling 
 #Pick a species - California towhee
 
@@ -471,7 +486,7 @@ summary(ctowhee_test)
 
 **Tidy model and visuzalize**
 
-```{r}
+```{r, results = FALSE}
 
 ccber_ctowhee_tidy <- broom::tidy(ccber_ctowhee_model) #this didn't end up being necessary
 
@@ -568,7 +583,7 @@ se_after_10<- sd_bef/sqrt(nrow(ct_ccber_after_10))
 
 ```
 
-**Combine graphs using patchwork - this is more for knitting**
+Combine graphs using patchwork - this is more for knitting
 
 ```{r}
 
@@ -579,9 +594,9 @@ ctowhee + ctowhee_r
 ```
 
 
-###BBS
+###Breeding Bird Survey
 **Model**
-```{r}
+```{r, results= FALSE}
 
 #filter out song sparrow
 
@@ -692,7 +707,7 @@ se_bbs_after_10 <- sd_bef/sqrt(nrow(ct_bbs_after_10))
 
 **Test if difference between growth rates for CCBER and BBS is significant for california towhee**
 
-```{r}
+```{r, results=FALSE}
 
 #three tests: before, after 2005, after 2010. 
 
@@ -704,4 +719,19 @@ t.test(ct_ccber_after_10$r,ct_bbs_after_10$r, conf.level = 0.95, paired = TRUE)
 
 ```
 
+##Results and Discussion
 
+Our results for the Song Sparrow suggest that the 2005 restoration may have had an effect on the population growth rate early on. Before from 1996 – 2005 the average growth rate was negative, while the average growth rate from 2006 to 2016 was positive. However, leaving out the first 5 years after restoration, the average growth rate from 2010 to 2016 is negative. This suggests there was a positive spike in growth rate directly after 2005, with growth rates then declining later on. We wonder if perhaps the coastal sage restoration (2006) which involved removal of non-native grasses, may have made the habitat more suitable for Song Sparrows by increasing insect abundance, their main diet. However, prescribed burns, which occurred from 2006 – 2008, could have the opposite if they decreased insect abundances in the short term. These are just speculations – when comparing local growth rates to Song Sparrow trends for the entire state, we did not find any significant differences. There may be other factors affecting Song Sparrows at larger scales driving these trends, that our analysis cannot necessarily rule out.  
+
+Our findings for the California Towhee differ from that of the Song Sparrow. Our model predictions show a more or less stable population for California Towhees across all years, with a gradual decrease after 2005. The average growth rate for California Towhees from 2005-2017 is negative at Lagoon Island, while throughout the state the average growth rate fluctuates between positive and negative. However,
+there were no significant differences in average growth rate for this species at Lagoon Island versus across California. The restoration at Lagoon Island may not have necessarily benefited California Towhees in the short-term, but because there are no significant differences from statewide trends, this is difficult to conclude. Similar to the Song Sparrow, there may be other variables besides restoration that are affecting California Towhees on Lagoon Island.
+
+##Limitations  
+
+While the measures of bird abundance used in this analysis provide useful information, this analysis is not without its limitations. The assumption that higher bird abundance signifies higher quality habitat is not
+necessarily true (Golet et al., 2003). In the future, collecting data on demographic rates could provide information about whether restored areas are supporting viable populations, which would be a better metric of restoration success. (Gardali et al., 2006). Furthermore, little is known about what higher bird abundance indicates about the impacts of restoration on other taxonomic groups (Ruiz‐Jaen et al., 2005).  
+
+An additional limitation of this analysis is that it may be too early to determine the impacts of restoration on some bird populations. Research on the impacts of revegetation on birds in Northern California found that some species did not show up on revegetated plots until 10 years after plantings. This delay may impact the species in this study (Gardali et a., 2006).  
+
+Lastly, our model fitted to CCBER bird counts may have been skewed by missing data. We wanted to control for seasonality by including a categorial month variable, however not every year had data available for every month. The raw CCBER data did not clarify whether the missing data corresponded to zero counts or if it simply meant no one had performed the count that month. To create a data frame that
+our model could use to generate predictions for a given month (we used July), we had to include 0 counts for the missing years. Given that both species are quite common in this area, treating the missing data as missing birds may not be realistic, and could have skewed our predictions towards lower abundances than what they actually are.
