@@ -38,7 +38,8 @@ Efforts to remove invasive grasses and restore coastal sage scrub and oak woodla
 
 The Cheadle Center for Biodiversity and Ecological Restoration (CCBER) has conducted oak woodland and coastal sage scrub restoration activities on Lagoon Island on the campus of the University of California, Santa Barbara intermittently since 2005. Research has suggested that restoration activities in small patches of habitat, such as those on Lagoon Island, can increase reproductive success and breeding density of savannah and woodland birds (Brawn et al., 2006). In this analysis, we evaluate the impact of restoration efforts on Lagoon Island for two species of local songbirds: Song Sparrows and the California Towhee.
 
-###Data cleaning - CCBER
+##A. Data Cleaning
+###CCBER
 ```{r}
 
 birds_all$species <- factor(birds_all$species)
@@ -107,7 +108,7 @@ bird_species_count <- data_long %>%
 ```
 
 
-##Data Cleaning - BBS
+###Breeding Bird Survey
 ```{r}
 
 #change the id codes into species names
@@ -130,7 +131,7 @@ bbs_clean <- bbs_all %>%
 ```
 
 
-##Summary graphs - CCBER
+###Summary graphs - CCBER
 
 ```{r}
 
@@ -192,8 +193,9 @@ sparrow_towhee_gg
 
 ###CCBER data
 **Model**
+
 We fit a GAM on our observation data, and then used that to predict yearly abundance, in July, for the species.
-<br>
+
 ```{r, results=FALSE}
 #go back to data read in `birds_all_clean` - pre major wrangling 
 #pick a species
@@ -270,6 +272,7 @@ ssparrow
 
 
 **Calculate growth rates**
+
 ```{r}
 
 #create a new column in sparrow complete that calculates r based on the year before using the log equation
@@ -315,7 +318,8 @@ se_after_5<- sd_bef/sqrt(nrow(ss_ccber_after))
 
 ```
 
-Combine graphs using patchwork - this is more for knitting
+Combine graphs using patchwork - just for fun
+<br>
 ```{r}
 
 ssparrow + ssparrow_r
@@ -323,9 +327,11 @@ ssparrow + ssparrow_r
 ```
 
 
-###BBS
+###Breeding Bird Survey
+We repeated the process above with data from the breeding bird survey. This will allow us to compare our findings from Lagoon Island to trends in the overall populations, helping us better understand if any changes we see are indeed a result of restoration or are reflecting a larger trend.  
 **Model**
-```{r}
+<br>
+```{r, results= FALSE }
 #filter out song sparrow
 
 bbs_ssparrow <- bbs_clean %>% 
@@ -354,6 +360,7 @@ ssparrow_predict_bbs
 ```
 
 Join observations and predictions
+
 ```{r}
 
 ssparrow_complete_bbs <- data.frame(bbs_ssparrow, ssparrow_predict_bbs)
@@ -390,6 +397,7 @@ ggsave("ssparrow_bbs_growthrate.png", width = 6, height = 3, units = "in")
 ```
 
 **Calculate growth rates**
+<br>
 ```{r}
 #df
 ss_bbs_before <- ssparrow_gr_bbs %>% 
@@ -414,7 +422,7 @@ se_bbs_after_5 <- sd_bef/sqrt(nrow(ss_bbs_after))
 ```
 
 **Test if difference between growth rates for CCBER and BBS is significant**
-
+<br>
 ```{r}
 
 #three tests: before, after 2005, after 2010. 
@@ -453,9 +461,6 @@ ctowhee_predict <- predict.gam(ccber_ctowhee_model, newd, type="response")
 
 ctowhee_predict
 
-#notes /issues
-#didn't month because I couldn't figure it out
-#how can we ask the models for integers
 
 plot(ccber_ctowhee_model)
 
@@ -477,8 +482,8 @@ ctowhee_by_year <- bird_summary_month_yr %>%
   filter(month == 7) %>%
   filter(year != 2017)
 
-#we need data for 1996 - 2000, going to create a dataframe with count = 0 
-#years will be different for Bewick's Wren
+#we need data for 1996, 97, 98, 00, 01, and 05 going to create a dataframe with count = 0 
+#this process needs to be adjusted for every species since the missing years will be different for each one
 
 month <- rep(6,6)
 year <- c(1996, 1997, 1998, 2000, 2001, 2005)
