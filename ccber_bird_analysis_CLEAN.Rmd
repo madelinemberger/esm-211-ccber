@@ -735,3 +735,10 @@ An additional limitation of this analysis is that it may be too early to determi
 
 Lastly, our model fitted to CCBER bird counts may have been skewed by missing data. We wanted to control for seasonality by including a categorial month variable, however not every year had data available for every month. The raw CCBER data did not clarify whether the missing data corresponded to zero counts or if it simply meant no one had performed the count that month. To create a data frame that
 our model could use to generate predictions for a given month (we used July), we had to include 0 counts for the missing years. Given that both species are quite common in this area, treating the missing data as missing birds may not be realistic, and could have skewed our predictions towards lower abundances than what they actually are.
+
+
+--------
+Notes:
+Code from Bruce - 
+levels(birds_all$date) %in% levels(birds_ssparrow$date)
+tt<-levels(temp$date) %in% levels(temp2$date))levels(temp$date)[!tt])# temp is all_birds
