@@ -220,7 +220,19 @@ ss_seasonplot
 
 ```
 
-List of dataframes created: 
+List of dataframes created in intial cleaning:  
+-`birds_all_clean` original data with month cleaned up 
+-`data_tidy` each line one bird, all species. This data frame is the main data frame which others are created from 
+-`bird_species_tidy` only passerines
+-`bird_species_count` not entirely sure how this is different
+
+List of dataframes created in calculating counts
+-`bird_summary_year` counts by year
+-`bird_summary_month_yr` counts by month and year
+-`sparrow_towhee_only` just the two species we are interested in, from `birds_species_tidy`
+
+
+
 
 ##Analysis: Song Sparrow
 
