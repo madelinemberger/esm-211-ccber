@@ -11,24 +11,25 @@ knitr::opts_chunk$set(echo = TRUE,
                       message = FALSE)
 
 library(tidyverse)
+library(here) #for file paths
 library(reshape2)
-library(paletteer)
-library(janitor)
-library(lubridate)
-library(mgcv)
-library(broom)
-library(patchwork)
+library(paletteer) #for color palettes
+library(janitor) #for cleaning
+library(lubridate) #for parsing dates
+library(mgcv) #for the GAM model
+library(broom) #for cleaning up model
+library(patchwork) #for finalizing figures
 library(RColorBrewer)
 library(gt)
 
 
 #read in CCBER data
-birds_all <- read_csv("UCSB_CampusLagoon_BirdSurveyData.csv") %>% 
+birds_all <- read_csv(here("raw_data", "UCSB_CampusLagoon_BirdSurveyData.csv")) %>%
   clean_names() %>% 
   select(species, lagoon_island_zone_summary, day:year)
 
 #read in breeding bird survey data
-bbs_all <- read_csv("bbs_data_all.csv") %>% 
+bbs_all <- read_csv(here("raw_data", "bbs_data_all.csv")) %>% 
   clean_names()
 ```
 
@@ -139,7 +140,7 @@ bbs_clean <- bbs_all %>%
 ```
 
 
-###Summary graphs - CCBER
+###Summarizing data frames and graphs - CCBER
 
 ```{r}
 
@@ -218,6 +219,8 @@ ss_seasonplot <- bird_summary_month_yr %>%
   
 ss_seasonplot 
 
+#repeat for towhee
+
 ```
 
 List of dataframes created in intial cleaning:  
@@ -228,18 +231,17 @@ List of dataframes created in intial cleaning:
 
 List of dataframes created in calculating counts
 -`bird_summary_year` counts by year
--`bird_summary_month_yr` counts by month and year
+-`bird_summary_month_yr` counts by month and year - use this for modeling
 -`sparrow_towhee_only` just the two species we are interested in, from `birds_species_tidy`
 
-
-
+***
 
 ##Analysis: Song Sparrow
 
 ###CCBER data
 **Model**
 
-We fit a GAM on our observation data, and then used that to predict yearly abundance, in July, for the species.
+We fit a GAM on our observation data, and then used that to predict yearly abundance, in July, for the species. Note 5/27: I think this is now wrong, should use model below
 
 ```{r, results=FALSE}
 #go back to data read in `birds_all_clean` - pre major wrangling 
@@ -266,13 +268,13 @@ ccber_ssparrow_model_jul <- mgcv::gam(lagoon_island_zone_summary ~ s(year), fami
 summary(ccber_ssparrow_model_jul)
 
 #create new data frame to use with the model
-newd <- data.frame(year = 1996:2016, month = "Jul")
+newd_jul <- data.frame(year = 1996:2016, month = "Jul")
 
 #predict abundance using new data, type predict shows actual abudance instead of log
 
-ssparrow_predict <- predict.gam(ccber_ssparrow_model, newd, type="response")
+ssparrow_predict_jul <- predict.gam(ccber_ssparrow_model, newd, type="response")
 
-ssparrow_predict
+ssparrow_predict_jul
 
 #notes /issues
 #didn't month because I couldn't figure it out
@@ -294,7 +296,14 @@ summary(ccber_ssparrow_model_all)
 
 plot(ccber_ssparrow_model_all)
 
-#summary(ssparrow_test)
+newd <- data.frame(year = 1996:2016, month = "7")
+
+#predict abundance using new data, type predict shows actual abudance instead of log
+
+ssparrow_predict <- predict.gam(ccber_ssparrow_model, newd, type="response")
+
+ssparrow_predict
+
 ```
 
 Tidy model and visualize 
@@ -306,8 +315,8 @@ ccber_ssparrow_tidy <- broom::tidy(ccber_ssparrow_model) #this didn't end up bei
 #we want the actual counts per year for song sparrows, so use the `birds_summmary_year` df
 
 ssparrow_by_year <- bird_summary_month_yr %>% 
-  filter(species == "song sparrow") %>% 
-  filter(month == 7) %>%
+  filter(species == "song sparrow") 
+  #filter(month == 7) %>%
   filter(year != 2017)
 
 #we need data for 1996 - 2000, going to create a dataframe with count = 0 
@@ -325,7 +334,7 @@ ssparrow_jul <- bind_rows(missing_ss, ssparrow_by_year)
 #bind obs and predictions
 ssparrow_complete <- data.frame(ssparrow_jul, ssparrow_predict)
 
-ssparrow <- ggplot(data = birds_ssparrow_ALL, aes(x = year, y = count)) +
+ssparrow <- ggplot(data = ssparrow_by_year, aes(x = year, y = count)) +
   geom_point()+
   geom_line(aes(x = year, y = ssparrow_predict), color = "paleturquoise3") +
   theme_minimal()+
