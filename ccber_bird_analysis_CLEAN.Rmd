@@ -159,8 +159,19 @@ bird_summary_month_yr <- bird_species_tidy %>%
   summarize(
     count = length(species)
   )
+#Bruce identified missing data for Sep 96, Oct 96, Apr 96, Sep 97 and Sep 00. Need to add these to `bird_summary_month_year` for graph.
 
-#change to sparrow bewicks only
+month <- c(9,10,4,9,9)
+year <- c(1996, 1996, 1997, 1997, 2000)
+species <- rep("song sparrow",5)
+count <- rep(0,5)
+#combine into df
+missing_ss_all <- data.frame(month, year,species,count)
+
+#row bind to rest of data - now you can use this to graph a seasonplot or timeseries graph 
+bird_summary_month_yr <- bind_rows(bird_summary_month_yr, missing_ss_all)
+
+#tidy with sparrow and towhee only, for graphing
 sparrow_towhee_only <- bird_species_tidy %>% 
   select(-location) %>% 
   filter(species == "song sparrow" | species == "california towhee") %>% 
@@ -194,8 +205,22 @@ sparrow_towhee_gg <- ggplot(sparrow_towhee_only, aes(x = year, y = count, group 
 sparrow_towhee_gg
 
 
+#seasonplot graph - need to fix x axis
+
+ss_seasonplot <- bird_summary_month_yr %>% 
+  filter(species == "song sparrow") %>%
+  ggplot(aes(x = month, y =count, group = year))+
+  geom_line(aes(color = year))+
+  theme_minimal()+
+  scale_y_continuous(expand = c(0,0), breaks = seq(0, 60, by = 10))+
+  labs(x = "Month", y = "Song Sparrow Count", color = "Year")+
+  scale_color_paletteer_c("pals::warmcool")
+  
+ss_seasonplot 
+
 ```
 
+List of dataframes created: 
 
 ##Analysis: Song Sparrow
 
@@ -209,13 +234,24 @@ We fit a GAM on our observation data, and then used that to predict yearly abund
 #pick a species
 
 birds_ssparrow <- birds_all_clean %>%
-  filter(species == "Song Sparrow")
+  filter(species == "Song Sparrow") %>% 
+  filter(month == "Jul") %>% 
+  select(-date)
 
-#run GAM on CCBER data
+species <- rep("Song Sparrow", 5)
+lagoon_island_zone_summary <- rep(0, 5)
+year <- c(1996, 1997, 1998, 2000, 2005)
+month <- rep("Jul", 5)
 
-ccber_ssparrow_model <- mgcv::gam(lagoon_island_zone_summary ~ s(year) + month, family = poisson, data = birds_ssparrow) #this gives you the log transformed abudnance
+missing_ss_jul_model <- data.frame(species, lagoon_island_zone_summary, year, month)
 
-summary(ccber_ssparrow_model)
+birds_ssparrow <- bind_rows(birds_ssparrow, missing_ss_jul_model)
+
+#run GAM on CCBER data - just for july 
+
+ccber_ssparrow_model_jul <- mgcv::gam(lagoon_island_zone_summary ~ s(year), family = poisson, data = birds_ssparrow) #this gives you the log transformed abudnance - I had to take out the month?
+
+summary(ccber_ssparrow_model_jul)
 
 #create new data frame to use with the model
 newd <- data.frame(year = 1996:2016, month = "Jul")
@@ -230,10 +266,21 @@ ssparrow_predict
 #didn't month because I couldn't figure it out
 #how can we ask the models for integers
 
-plot(ccber_ssparrow_model)
+plot(ccber_ssparrow_model_jul)
+```
 
 
-ssparrow_test <- lm(lagoon_island_zone_summary~year+ month, data = birds_ssparrow)
+```{r}
+#run GAM on ccber data all 
+
+birds_ssparrow_ALL <- bird_summary_month_yr %>%
+  filter(species == "song sparrow")
+
+ccber_ssparrow_model_all <- mgcv::gam(count ~ s(year) + month, family = poisson, data = birds_ssparrow_ALL)
+
+summary(ccber_ssparrow_model_all)
+
+plot(ccber_ssparrow_model_all)
 
 #summary(ssparrow_test)
 ```
@@ -266,8 +313,7 @@ ssparrow_jul <- bind_rows(missing_ss, ssparrow_by_year)
 #bind obs and predictions
 ssparrow_complete <- data.frame(ssparrow_jul, ssparrow_predict)
 
-
-ssparrow <- ggplot(data = ssparrow_complete, aes(x = year, y = count)) +
+ssparrow <- ggplot(data = birds_ssparrow_ALL, aes(x = year, y = count)) +
   geom_point()+
   geom_line(aes(x = year, y = ssparrow_predict), color = "paleturquoise3") +
   theme_minimal()+
